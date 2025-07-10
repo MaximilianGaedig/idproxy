@@ -1,0 +1,74 @@
+services:
+  api:
+    image: idproxy-api
+    container_name: idproxy_$INSTANCE_ID
+    volumes:
+      - ./data/$INSTANCE_ID/idproxy:/data
+      - /tmp/idproxy_sockets/$INSTANCE_ID/:/socket/
+    depends_on:
+      - anisette
+    network_mode: "service:proxy"
+    restart: unless-stopped
+    mem_limit: 100m
+    memswap_limit: 100m
+    mem_reservation: 15m
+    cpus: 0.5
+  
+  anisette:
+    image: dadoum/anisette-v3-server
+    container_name: anisette_$INSTANCE_ID
+    user: Alcoholic
+    depends_on:
+      proxy:
+        condition: service_healthy
+    volumes:
+      - ./data/$INSTANCE_ID/anisette:/home/Alcoholic/.config/anisette-v3
+      - ./data/anisette_lib:/home/Alcoholic/.config/anisette-v3/lib
+    network_mode: "service:proxy"
+    restart: unless-stopped
+    mem_limit: 30m
+    memswap_limit: 30m
+    mem_reservation: 15m
+    cpus: 0.3
+
+  proxy:
+    image: linuxserver/wireguard
+    container_name: proxy_$INSTANCE_ID
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./lib/wg0.conf:/config/wg_confs/wg0.conf
+    networks:
+      - ofutun
+    depends_on:
+      - ofutun
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ip link show wg0 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 100m
+    memswap_limit: 100m
+    mem_reservation: 25m
+    cpus: 0.5
+    
+
+  ofutun:
+    image: idproxy-ofutun
+    command: ofutun --private-key 4KQFq+H6SdRvcqT7TGfDWdEWkQBKjme6aYDOKW0a73E= --priv-peer "yHM+FaVg1g3YJ9R+fEpKmWYd31KF+VaOzZyt4QsS81k=,192.168.9.2" --local-ip 192.168.9.1 --proxy $INSTANCE_PROXY
+    networks:
+      - ofutun
+    restart: unless-stopped
+    mem_limit: 50m
+    memswap_limit: 50m
+    mem_reservation: 25m
+    cpus: 0.5
+
+networks:
+  ofutun:

@@ -1,0 +1,3 @@
+[submodule "idproxy/lib/ofutun"]
+	path = idproxy/lib/ofutun
+	url = https://github.com/hrntknr/ofutun.git
